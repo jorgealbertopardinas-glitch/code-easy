@@ -1,727 +1,863 @@
 <!DOCTYPE html>
-
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CodeEasy - Intérprete de Pseudocódigo</title>
-<script src="https://www.google.com/search?q=https://cdn.tailwindcss.com"></script>
-<link href="https://www.google.com/search?q=https://fonts.googleapis.com/css2%3Ffamily%3DInter:wght%40400%3B600%3B700%26family%3DFira%2BCode:wght%40400%3B500%3B600%26display%3Dswap" rel="stylesheet">
-<style>
-:root {
---primary: #4f46e5; /* Indigo 600 /
---primary-dark: #4338ca; / Indigo 700 /
---background: #f8fafc; / Slate 50 /
---surface: #ffffff; / White /
-}
-body {
-font-family: 'Inter', sans-serif;
-background-color: var(--background);
-line-height: 1.6;
-}
-.code-font {
-font-family: 'Fira Code', monospace;
-}
-.container-grid {
-display: grid;
-grid-template-columns: 1fr 1fr;
-gap: 24px;
-}
-@media (max-width: 768px) {
-.container-grid {
-grid-template-columns: 1fr;
-gap: 16px;
-}
-}
-textarea {
-resize: none;
-transition: border-color 0.2s;
-}
-.scrollable {
-overflow-y: auto;
-}
-/ Custom Scrollbar for better code visualization /
-.scrollable::-webkit-scrollbar {
-width: 8px;
-}
-.scrollable::-webkit-scrollbar-thumb {
-background-color: #cbd5e1; / Slate 300 /
-border-radius: 4px;
-}
-.scrollable::-webkit-scrollbar-track {
-background: #f1f5f9; / Slate 100 /
-}
-/ Focus styles for textarea */
-textarea:focus {
-outline: none;
-border-color: var(--primary-dark);
-}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CODE-EASY: Intérprete de Pseudocódigo</title>
+    <!-- Carga de Tailwind CSS para el estilo -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Carga de Ace Editor (Núcleo) y el módulo de Autocompletación -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.0/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ace/1.33.0/ext-language_tools.js" type="text/javascript" charset="utf-8"></script>
+
+    <style>
+        /* Fuente principal y estilos base */
+        body { font-family: 'Inter', sans-serif; }
+        .console {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        /* Contenedor del Editor de Ace. ALTURA FIJA ES NECESARIA para Ace */
+        #editor-container {
+            width: 100%;
+            height: 400px; /* Altura del editor */
+            font-size: 14px;
+            border-radius: 0.5rem;
+            border: 1px solid #d1d5db; /* border-gray-300 */
+        }
+        
+        .ace_editor {
+            border-radius: 0.5rem;
+            background-color: #2D2D2D !important; /* Asegurar un fondo oscuro consistente */
+        }
+        
+        /* --- ESTILOS CRÍTICOS PARA DESACTIVAR RESALTADO DE LÍNEA Y FORZAR SINTAXIS (v3.8) --- */
+        
+        /* 1. DESACTIVAR el RESALTADO DE FONDO de la LÍNEA ACTIVA (¡Solución al problema!) */
+        #editor-container .ace_active-line {
+            background: transparent !important; 
+        }
+        
+        /* 2. PREVENIR que el TEXTO se ponga negro al seleccionar la línea */
+        #editor-container .ace_active-line *,
+        #editor-container .ace_active-line .ace_text-layer {
+            background-color: transparent !important;
+            color: inherit !important; 
+        }
+        
+        /* 3. BASE TEXTO Y VARIABLES (Identificadores): FUERZA BLANCO ULTRA-NEGRILLA */
+        #editor-container .ace_text-layer,
+        #editor-container .ace_text-layer .ace_line,
+        .ace_identifier,
+        .ace_variable { 
+            color: #FFFFFF !important; /* BLANCO */
+            font-weight: 900 !important; /* Ultra Bold */
+        }
+        
+        /* 4. COMANDOS ESTRUCTURALES Y E/S (Keywords): FUERZA AZUL VIVO */
+        { token: "ace_keyword ace_operator", regex: "<-|[<>!=\\+\\-\\*\\/]|\\b(Y|O|NO)\\b" },
+                        
+        .ace_keyword, 
+        .ace_storage,
+        .ace_keyword.ace_definition,      
+        .ace_keyword.ace_control,         
+        .ace_keyword.ace_operator, 
+        .ace_storage.ace_type.ace_io {       
+            color: #3B82F6 !important; /* AZUL VIVO (Tailwind blue-500) */
+            font-weight: 900 !important; /* Ultra Negrita */
+        }
+
+        /* 5. COMENTARIOS: FUERZA VERDE ESMERALDA VIVO */
+        .ace_comment {
+            color: #10B981 !important; /* VERDE ESMERALDA VIVO (Tailwind emerald-500) */
+            font-weight: 700 !important; /* Negrita */
+            font-style: normal !important; 
+        }
+        
+        /* 6. TIPOS DE DATOS (Entero, Real, etc.): FUERZA AMARILLO/ÁMBAR VIVO */
+        .ace_support.ace_type {
+            color: #FBBF24 !important; /* AMARILLO/ÁMBAR VIVO (Tailwind amber-400) */
+            font-weight: 800 !important;
+        }
+        
+        /* 7. CADENAS DE TEXTO (Strings): FUERZA CYAN BRILLANTE */
+        .ace_string {
+            color: #00BCD4 !important; /* CYAN BRILLANTE */
+            font-weight: 800 !important; 
+        }
+        
+        /* 8. NÚMEROS Y CONSTANTES (Verdadero/Falso): FUERZA NARANJA VIVO */
+        .ace_numeric, .ace_constant.ace_language {
+            color: #F97316 !important; /* NARANJA VIVO (Tailwind orange-600) */
+            font-weight: 800 !important;
+        }
+        
+        /* Estilo de selección (arrastrar el ratón) */
+        .ace_selection {
+            background: rgba(59, 130, 246, 0.4) !important; /* Azul claro semi-transparente */
+        }
+        
+    </style>
 </head>
-<body class="p-4 md:p-8">
+<body class="bg-gray-50 min-h-screen p-4 md:p-8">
 
-<div id="app" class="max-w-7xl mx-auto">
-
-    <!-- Header -->
-    <header class="mb-8">
-        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 flex items-center">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mr-2 text-indigo-600" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.55.895l-3.239 1.62a1 1 0 00-.5.894v2.585a1 1 0 01-.55.895l-1.92 1.28A1 1 0 009 15v3a1 1 0 01-2 0v-3a1 1 0 00-.55-.895l-1.92-1.28A1 1 0 014 9.485V6.894a1 1 0 00-.5-.894L.55 6a1 1 0 01-.55-.895V3zM4 6.894V9.485a3 3 0 001.65 2.684l2.5 1.667V11.2a1 1 0 01.55-.895l3.239-1.62A3 3 0 0015 6.894V3H4v3.894z" clip-rule="evenodd" />
-            </svg>
-            CodeEasy
+    <div id="app" class="max-w-7xl mx-auto">
+        <!-- TÍTULO PERSONALIZADO -->
+        <h1 class="text-4xl font-extrabold text-teal-700 mb-1">
+            CODE-EASY
         </h1>
-        <p class="text-gray-500 mt-1">Intérprete de Pseudocódigo (Español)</p>
-    </header>
+        <p class="text-lg font-semibold text-gray-500 mb-6 border-b pb-2">
+            Intérprete de Pseudocódigo - Hecho por Jorge Alberto Pardiñas García
+        </p>
+        <!-- FIN DEL TÍTULO PERSONALIZADO -->
 
-    <!-- Main Grid Container -->
-    <div class="container-grid">
-        
-        <!-- Code Editor (Left Side) -->
-        <div class="bg-white shadow-lg rounded-xl overflow-hidden flex flex-col h-[50vh] md:h-[60vh] border border-gray-200">
-            <div class="bg-gray-100 p-3 flex justify-between items-center border-b border-gray-200">
-                <h2 class="text-lg font-semibold text-gray-700">Editor de Código</h2>
-                <div class="space-x-2">
-                    <button id="runButton" class="px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition duration-150 shadow-md flex items-center disabled:opacity-50" disabled>
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
-                        </svg>
-                        Ejecutar
-                    </button>
-                </div>
-            </div>
-            <!-- Textarea for Code Input -->
-            <textarea id="codeInput" placeholder="Escribe tu pseudocódigo aquí (Ej: Escribir 'Hola Mundo')..." 
-                class="code-font p-4 flex-grow border-0 outline-none text-gray-800 text-sm scrollable"
-                spellcheck="false"></textarea>
+        <!-- Alerta de API Key Faltante (Solo visible si API_KEY está vacío) -->
+        <div id="api-key-warning" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <strong class="font-bold">¡Atención! Falta la API Key.</strong>
+            <span class="block sm:inline">Para ejecutar el pseudocódigo, **DEBES** obtener y pegar tu clave de API de Gemini en el código fuente (ver sección de scripts).</span>
+            <a href="https://ai.google.dev/gemini-api/docs/api-key" target="_blank" class="text-red-500 underline font-semibold ml-2 hover:text-red-900 transition">Obtener Clave Aquí</a>
         </div>
 
-        <!-- Console and Variables (Right Side) -->
-        <div class="flex flex-col space-y-4">
-            
-            <!-- Console Output -->
-            <div class="bg-gray-800 shadow-lg rounded-xl overflow-hidden flex flex-col h-1/2 min-h-[150px] border border-gray-700">
-                <div class="bg-gray-700 p-3 flex justify-between items-center border-b border-gray-600">
-                    <h2 class="text-lg font-semibold text-white">Consola de Salida</h2>
-                    <button id="clearConsoleButton" class="text-sm text-gray-300 px-3 py-1 border border-gray-500 rounded-lg hover:bg-gray-600 transition duration-150 flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd" />
-                        </svg>
-                        Limpiar
-                    </button>
+
+        <!-- Contenedor principal: Editor a la izquierda, Consola/Variables a la derecha (en desktop) -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+            <!-- Columna del Editor de Código -->
+            <div class="lg:col-span-2 space-y-4">
+
+                <!-- Gestión de Archivos (Guardar/Cargar/Descargar) -->
+                <div class="bg-white p-4 rounded-lg shadow-xl border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-3 text-teal-700 border-b pb-2">Gestión de Archivos</h2>
+                    <div class="flex items-center space-x-3 mb-4">
+                        <label for="document-title" class="text-sm font-medium text-gray-700 whitespace-nowrap">Nombre del Archivo:</label>
+                        <input type="text" id="document-title" value="mi_ejercicio_1" class="flex-grow p-2 border border-gray-300 rounded-lg text-sm font-mono" placeholder="Nombre para guardar o cargar el pseudocódigo">
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="save-button" class="flex-grow px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 transition duration-150 disabled:bg-green-300" disabled>
+                            💾 Guardar Código
+                        </button>
+                        <button id="load-button" class="flex-grow px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition duration-150 disabled:bg-blue-300" disabled>
+                            📂 Cargar Código
+                        </button>
+                        <!-- NUEVO BOTÓN DE DESCARGA -->
+                        <button id="download-button" class="flex-grow px-4 py-2 bg-purple-600 text-white font-semibold rounded-lg shadow-md hover:bg-purple-700 transition duration-150">
+                            ⬇️ Descargar (.txt)
+                        </button>
+                    </div>
+                    <p id="save-status" class="mt-2 text-sm text-center text-gray-600"></p>
                 </div>
-                <!-- Console Text Area -->
-                <pre id="consoleOutput" class="code-font p-4 flex-grow text-white text-xs scrollable bg-gray-900/90"></pre>
+                <!-- FIN: Gestión de Archivos -->
+
+
+                <div class="bg-white p-4 rounded-lg shadow-xl border border-gray-200">
+                    <!-- TEXTO MODIFICADO AQUÍ -->
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Escribe tu Pseudocódigo aquí:
+                    </label>
+                    <!-- FIN TEXTO MODIFICADO -->
+                    
+                    <!-- ACE EDITOR VA EN ESTE DIV -->
+                    <div id="editor-container" class="bg-gray-50"></div>
+                </div>
+                
+                <!-- Controles y Entrada de Datos -->
+                <div class="flex flex-col md:flex-row gap-4">
+                    <button id="run-button" class="flex-grow px-6 py-3 bg-teal-600 text-white font-semibold rounded-lg shadow-md hover:bg-teal-700 transition duration-150">
+                        ▶ Ejecutar y Simular
+                    </button>
+                    
+                    <div class="flex-grow bg-white p-3 rounded-lg shadow border border-gray-200">
+                        <label for="input-data" class="block text-sm font-medium text-gray-700 mb-1">
+                            Entrada de Datos (separar por líneas):
+                        </label>
+                        <textarea id="input-data" rows="3" class="w-full p-2 font-mono text-xs border border-gray-300 rounded focus:ring-teal-500 focus:border-teal-500" placeholder="5&#10;12"></textarea>
+                    </div>
+                </div>
             </div>
 
-            <!-- Variables Table -->
-            <div class="bg-white shadow-lg rounded-xl overflow-hidden flex flex-col h-1/2 min-h-[150px] border border-gray-200">
-                <div class="bg-gray-100 p-3 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-700">Variables Declaradas</h2>
+            <!-- Columna de Resultados (Consola y Variables) -->
+            <div class="lg:col-span-1 space-y-6">
+                
+                <!-- Consola de Salida -->
+                <div class="bg-gray-800 text-white p-4 rounded-lg shadow-xl h-64 overflow-y-auto">
+                    <h2 class="text-lg font-semibold mb-2 border-b border-gray-700 pb-1 text-teal-400">Consola de Salida</h2>
+                    <pre id="output-console" class="console text-sm text-gray-200">
+&gt; Listo para ejecutar.
+                    </pre>
                 </div>
-                <div class="flex-grow p-4 scrollable">
-                    <table id="variablesTable" class="min-w-full divide-y divide-gray-200 text-sm">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tl-lg">Nombre</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider rounded-tr-lg">Valor</th>
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            <!-- Filas de variables se insertarán aquí por JS -->
-                        </tbody>
-                    </table>
-                    <p id="noVariablesMessage" class="text-sm text-gray-500 mt-2 italic text-center">No hay variables declaradas.</p>
+                
+                <!-- Inspector de Variables -->
+                <div class="bg-white p-4 rounded-lg shadow-xl h-64 overflow-y-auto border border-gray-200">
+                    <h2 class="text-lg font-semibold mb-2 border-b pb-1 text-teal-700">Variables</h2>
+                    <div id="variables-inspector" class="text-sm font-mono space-y-1">
+                        <!-- Las variables se mostrarán aquí -->
+                        <p class="text-gray-500">No hay variables definidas.</p>
+                    </div>
+                </div>
+                
+                <!-- ID de Usuario para referencia -->
+                <div class="bg-white p-3 rounded-lg shadow border border-gray-200">
+                     <p class="text-xs text-gray-500">ID de Usuario (Necesario para Guardar): <span id="user-id-display" class="font-mono text-gray-800 break-all">Cargando...</span></p>
                 </div>
             </div>
+
         </div>
     </div>
 
-    <!-- Footer and Instructions -->
-    <footer class="mt-10 p-4 bg-white rounded-xl shadow-lg border border-gray-200">
-        <h3 class="text-xl font-bold text-indigo-700 mb-3">Sintaxis Soportada</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
-            <div>
-                <p class="font-semibold mb-1">Estructuras Básicas</p>
-                <ul class="list-disc list-inside space-y-1 code-font">
-                    <li>`Proceso` / `FinProceso`</li>
-                    <li>`Definir variable Como Tipo` (Entero, Real, Caracter, Logico)</li>
-                    <li>`Leer variable`</li>
-                    <li>`Escribir "texto", variable`</li>
-                </ul>
-            </div>
-            <div>
-                <p class="font-semibold mb-1">Control de Flujo</p>
-                <ul class="list-disc list-inside space-y-1 code-font">
-                    <li>`Si condicion Entonces ... FinSi`</li>
-                    <li>`Si condicion Entonces ... Sino ... FinSi`</li>
-                    <li>`Mientras condicion Hacer ... FinMientras`</li>
-                    <li>`Para variable Desde inicio Hasta fin Con Paso N Hacer ... FinPara`</li>
-                </ul>
-            </div>
-            <div>
-                <p class="font-semibold mb-1">Operadores</p>
-                <ul class="list-disc list-inside space-y-1 code-font">
-                    <li>Aritméticos: `+`, `-`, `*`, `/`, `^`, `%`</li>
-                    <li>Relacionales: `=`, `!=`, `<`, `>`, `<=`, `>=`</li>
-                    <li>Lógicos: `Y`, `O`, `No`</li>
-                </ul>
-            </div>
-        </div>
-    </footer>
-
-</div>
-
-<!-- Custom Modal for Input/Alerts (Replaces alert() and prompt()) -->
-<div id="modalOverlay" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden items-center justify-center">
-    <div class="bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full">
-        <h3 id="modalTitle" class="text-xl font-semibold mb-4 text-gray-800">Título</h3>
-        <p id="modalMessage" class="mb-4 text-gray-700"></p>
-        <input type="text" id="modalInput" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 hidden" placeholder="Introduce tu valor aquí">
-        <div id="modalButtons" class="mt-4 flex justify-end space-x-3">
-            <!-- Buttons are inserted here by JS -->
-        </div>
-    </div>
-</div>
-
-<!-- JavaScript Interpreter Logic -->
-<script>
-    const codeInput = document.getElementById('codeInput');
-    const runButton = document.getElementById('runButton');
-    const consoleOutput = document.getElementById('consoleOutput');
-    const clearConsoleButton = document.getElementById('clearConsoleButton');
-    const variablesTableBody = document.querySelector('#variablesTable tbody');
-    const noVariablesMessage = document.getElementById('noVariablesMessage');
-
-    const modalOverlay = document.getElementById('modalOverlay');
-    const modalTitle = document.getElementById('modalTitle');
-    const modalMessage = document.getElementById('modalMessage');
-    const modalInput = document.getElementById('modalInput');
-    const modalButtons = document.getElementById('modalButtons');
-
-    let programState = {
-        codeLines: [],
-        currentLine: 0,
-        variables: new Map(),
-        isWaitingForInput: false,
-        inputResolve: null
-    };
-
-    // --- Utility Functions ---
-
-    /** Shows the custom modal for output, alerts, or input. */
-    function showModal(title, message, isInput = false, onConfirm = null, onCancel = null) {
-        modalTitle.textContent = title;
-        modalMessage.textContent = message;
-        modalInput.value = '';
-        modalInput.classList.toggle('hidden', !isInput);
-        modalButtons.innerHTML = '';
-
-        const confirmButton = document.createElement('button');
-        confirmButton.className = 'px-4 py-2 bg-indigo-600 text-white font-medium rounded-lg hover:bg-indigo-700 transition duration-150';
-
-        if (isInput) {
-            confirmButton.textContent = 'Aceptar';
-            confirmButton.onclick = () => {
-                modalOverlay.classList.add('hidden');
-                if (onConfirm) onConfirm(modalInput.value);
+    <!-- ************************************************************ -->
+    <!-- PARTE 1: DEFINICIÓN DE ACE EDITOR (SIN MODULOS) -->
+    <!-- ************************************************************ -->
+    <script>
+        // 1. Definición del Tokenizador (Tokenizer) para Pseudocódigo Español
+        ace.define("ace/mode/pseudocode_highlight_rules", ["require", "exports", "module", "ace/lib/oop", "ace/mode/text_highlight_rules"], function(require, exports, module) {
+            "use strict";
+            var oop = require("../lib/oop");
+            var TextHighlightRules = require("./text_highlight_rules").TextHighlightRules;
+            
+            var PseudocodeHighlightRules = function() {
+                this.$rules = {
+                    "start": [
+                        // Comentarios de una línea (similar a //)
+                        { token: "ace_comment", regex: "#.*$" },
+                        
+                        // Cadenas de texto
+                        { token: "ace_string", regex: /['"](?:\.|[^'"])*['"]/ },
+                        
+                        // Números (enteros y reales)
+                        { token: "ace_numeric", regex: "[+-]?\\d+(?:\\.\\d+)?" },
+                        
+                        // Palabras clave de E/S (Input/Output) -> Azul
+                        { token: "ace_storage ace_type ace_io", regex: "\\b(Escribir|Leer|Mostrar)\\b" },
+                        
+                        // Palabras clave de Definición de Estructura -> Azul
+                        { token: "ace_keyword ace_definition", regex: "\\b(Proceso|FinProceso|Definir|Como)\\b" },
+                        
+                        // Tipos de datos -> Amarillo/Ámbar
+                        { token: "ace_support ace_type", regex: "\\b(Entero|Real|Caracter|Logico|Lógico)\\b" },
+                        
+                        // Estructuras de Control (Condicionales y Ciclos) -> Azul
+                        { token: "ace_keyword ace_control", regex: "\\b(Si|Entonces|Sino|FinSi|Mientras|Hacer|FinMientras|Para|Hasta|ConPaso|FinPara)\\b" },
+                        
+                        // Operadores y asignación -> Azul
+                        { token: "ace_keyword ace_operator", regex: "<-|[<>!=\\+\\-\\*\\/]|\\b(Y|O|NO)\\b" },
+                        
+                        // Palabras clave de valor (booleanos) -> Naranja
+                        { token: "ace_constant ace_language", regex: "\\b(Verdadero|Falso)\\b" },
+                    ]
+                };
             };
-            
-            const cancelButton = document.createElement('button');
-            cancelButton.textContent = 'Cancelar';
-            cancelButton.className = 'px-4 py-2 bg-gray-200 text-gray-700 font-medium rounded-lg hover:bg-gray-300 transition duration-150';
-            cancelButton.onclick = () => {
-                modalOverlay.classList.add('hidden');
-                if (onCancel) onCancel();
-            };
-            modalButtons.appendChild(cancelButton);
-            modalButtons.appendChild(confirmButton);
-
-        } else {
-            confirmButton.textContent = 'Cerrar';
-            confirmButton.onclick = () => modalOverlay.classList.add('hidden');
-            modalButtons.appendChild(confirmButton);
-        }
-
-        modalOverlay.classList.remove('hidden');
-        if (isInput) modalInput.focus();
-    }
-
-    /** Appends text to the console output. */
-    function log(message, type = 'output') {
-        const span = document.createElement('span');
-        span.classList.add('block', 'whitespace-pre-wrap');
-        
-        if (type === 'error') {
-            span.classList.add('text-red-400', 'font-bold');
-        } else if (type === 'input') {
-            span.classList.add('text-yellow-400');
-        } else {
-            span.classList.add('text-gray-200');
-        }
-        
-        span.textContent = message;
-        consoleOutput.appendChild(span);
-        consoleOutput.scrollTop = consoleOutput.scrollHeight; // Auto-scroll
-    }
-    
-    /** Clears the console and resets state. */
-    clearConsoleButton.addEventListener('click', () => {
-        consoleOutput.textContent = '';
-        updateVariablesDisplay(new Map()); // Clear variables display
-        programState.variables.clear(); // Clear internal variables
-    });
-
-    /** Updates the variables table in the UI. */
-    function updateVariablesDisplay(variables) {
-        variablesTableBody.innerHTML = '';
-        if (variables.size === 0) {
-            noVariablesMessage.classList.remove('hidden');
-            return;
-        }
-        noVariablesMessage.classList.add('hidden');
-
-        variables.forEach((data, name) => {
-            const row = variablesTableBody.insertRow();
-            row.className = 'hover:bg-indigo-50 transition duration-100';
-
-            // Format value for display (e.g., wrap strings in quotes)
-            let displayValue = data.value;
-            if (data.type === 'Caracter' && typeof data.value === 'string') {
-                displayValue = `"${data.value}"`;
-            } else if (data.type === 'Logico') {
-                displayValue = data.value ? 'Verdadero' : 'Falso';
-            } else if (data.type === 'Real') {
-                // Ensure Real numbers show enough precision
-                displayValue = Number(data.value).toFixed(2);
-            }
-
-            // Name Cell
-            let cell = row.insertCell();
-            cell.textContent = name;
-            cell.className = 'px-3 py-2 code-font font-medium text-gray-900';
-
-            // Type Cell
-            cell = row.insertCell();
-            cell.textContent = data.type;
-            cell.className = 'px-3 py-2 text-gray-500';
-
-            // Value Cell
-            cell = row.insertCell();
-            cell.textContent = displayValue;
-            cell.className = 'px-3 py-2 code-font text-indigo-600 font-semibold';
-        });
-    }
-
-    // --- Core Interpreter Logic ---
-
-    /** Tokenizes a line of code into command and arguments. */
-    function tokenize(line) {
-        line = line.trim();
-        if (!line) return null;
-
-        // Simple handling for assignments (first = is the assignment operator)
-        const assignmentMatch = line.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*<-\s*(.*)$/);
-        if (assignmentMatch) {
-            return { command: 'Asignacion', args: [assignmentMatch[1].trim(), assignmentMatch[2].trim()] };
-        }
-
-        // Look for commands like Escribir, Leer, Definir, Si, etc.
-        const parts = line.split(/\s+/);
-        const command = parts[0].toLowerCase();
-        const rest = line.substring(parts[0].length).trim();
-
-        if (command === 'definir') {
-            const match = rest.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s+como\s+(entero|real|caracter|logico)$/i);
-            if (match) return { command: 'Definir', args: [match[1], match[2]] };
-        } else if (command === 'escribir') {
-            return { command: 'Escribir', args: [rest] };
-        } else if (command === 'leer') {
-            return { command: 'Leer', args: [rest] };
-        } else if (command === 'si') {
-            const match = rest.match(/^(.*)\s+entonces$/i);
-            if (match) return { command: 'Si', args: [match[1]] };
-        } else if (command === 'sino') {
-            return { command: 'Sino', args: [] };
-        } else if (command === 'finsi') {
-            return { command: 'FinSi', args: [] };
-        } else if (command === 'mientras') {
-            const match = rest.match(/^(.*)\s+hacer$/i);
-            if (match) return { command: 'Mientras', args: [match[1]] };
-        } else if (command === 'finmientras') {
-            return { command: 'FinMientras', args: [] };
-        } else if (command === 'para') {
-            const match = rest.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s+desde\s+(.*)\s+hasta\s+(.*)(?:\s+con\s+paso\s+(.*))?\s+hacer$/i);
-            if (match) return { command: 'Para', args: [match[1], match[2], match[3], match[4] || '1'] };
-        } else if (command === 'finpara') {
-            return { command: 'FinPara', args: [] };
-        } else if (command === 'proceso' || command === 'finproceso') {
-            return { command: parts[0], args: [] };
-        }
-
-        // Fallback for simple commands or unrecognized lines
-        return { command: parts[0], args: [rest] };
-    }
-
-    /** Evaluates a mathematical or logical expression. */
-    function evaluateExpression(expression, variables) {
-        expression = expression.trim();
-        if (!expression) throw new Error("Expresión vacía.");
-
-        // 1. Replace Logical operators (Y, O, No) with JS equivalents (&&, ||, !)
-        expression = expression.replace(/ Y /gi, ' && ')
-                               .replace(/ O /gi, ' || ')
-                               .replace(/ No /gi, ' !');
-
-        // 2. Replace Pseudocode operators (<=, >=, <>, =, ^, %)
-        expression = expression.replace(/ != /g, ' !== ')
-                               .replace(/ = /g, ' === ') // Use strict equality for comparison
-                               .replace(/ <- /g, ' = '); // Should be handled by Asignacion, but good for safety
-
-        // 3. Replace variable names with their values
-        variables.forEach((data, name) => {
-            const value = data.value;
-            const type = data.type;
-            
-            // Use regex word boundary to prevent partial replacement (e.g., 'a' in 'var')
-            const regex = new RegExp(`\\b${name}\\b`, 'g');
-            
-            if (type === 'Caracter') {
-                // Strings must be quoted in the JS expression
-                expression = expression.replace(regex, JSON.stringify(value));
-            } else if (type === 'Logico') {
-                // Logicos map to true/false in JS
-                expression = expression.replace(regex, value ? 'true' : 'false');
-            } else {
-                // Numeric or other types
-                expression = expression.replace(regex, value);
-            }
+            oop.inherits(PseudocodeHighlightRules, TextHighlightRules);
+            exports.PseudocodeHighlightRules = PseudocodeHighlightRules;
         });
 
-        // 4. Handle String literals (must be quoted)
-        expression = expression.replace(/"([^"]*)"/g, (match, p1) => `'${p1}'`);
+        // 2. Definición del Modo Completo (incluye el tokenizador)
+        ace.define("ace/mode/pseudocode", ["require", "exports", "module", "ace/lib/oop", "ace/mode/text", "ace/mode/pseudocode_highlight_rules"], function(require, exports, module) {
+            "use strict";
+            var oop = require("../lib/oop");
+            var TextMode = require("./text").Mode;
+            var PseudocodeHighlightRules = require("./pseudocode_highlight_rules").PseudocodeHighlightRules;
 
-        // 5. Custom replacement for Exponentiation (^) and Modulo (%) which are `Math.pow` and `%`
-        // NOTE: This complex step is often simplified in real interpreters. For simplicity here, we rely on standard JS operators, assuming no complex ^ usage outside simple arithmetic.
+            var Mode = function() {
+                this.HighlightRules = PseudocodeHighlightRules;
+            };
+            oop.inherits(Mode, TextMode);
 
+            (function() {
+                this.lineCommentStart = "#"; // Definimos el comentario de línea
+            }).call(Mode.prototype);
+
+            exports.Mode = Mode;
+        });
+
+        // 3. Proveedor de Autocompletación
+        window.pseudocodeCompleter = {
+            getCompletions: function(editor, session, pos, prefix, callback) {
+                var keywords = [
+                    "Proceso", "FinProceso", "Definir", "Como", 
+                    "Entero", "Real", "Caracter", "Logico", "Lógico",
+                    "Escribir", "Leer", "Mostrar",
+                    "Si", "Entonces", "Sino", "FinSi", 
+                    "Mientras", "Hacer", "FinMientras", 
+                    "Para", "Hasta", "ConPaso", "FinPara"
+                ];
+                
+                callback(null, keywords.map(function(keyword) {
+                    return {
+                        caption: keyword,
+                        value: keyword,
+                        meta: "Palabra Clave"
+                    };
+                }));
+            }
+        };
+    </script>
+
+    <!-- ************************************************************ -->
+    <!-- PARTE 2: INICIALIZACIÓN DE FIREBASE Y LÓGICA PRINCIPAL (MODULAR) -->
+    <!-- ************************************************************ -->
+    <script type="module">
+        // Importaciones de Firebase (Usando CDN para el entorno de un solo archivo HTML)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ************************************************************
+        // --- CONFIGURACIÓN DE FIREBASE Y API ---
+        // ************************************************************
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        let firebaseConfig = {};
         try {
-            // Use a wrapper function to execute the expression safely
-            const result = new Function(`return ${expression};`)();
-            return result;
+            firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
         } catch (e) {
-            throw new Error(`Error de evaluación de expresión: ${e.message} en "${expression}"`);
+            console.error("Error parsing firebase config:", e);
         }
-    }
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+        
+        // Configuración de la API de Gemini
+        // 🔑🔑🔑 LÍNEA CLAVE: ¡PEGA TU API KEY AQUÍ DENTRO DE LAS COMILLAS! 🔑🔑🔑
+        const API_KEY = "AIzaSyAK0ezgHEiho0lRkHA4apu5oXYsUES5BiA"; 
+        // 🔑🔑🔑 ¡ASEGÚRATE DE REEMPLAZAR 'TU_CLAVE_AQUI' POR TU CLAVE REAL! 🔑🔑🔑
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${API_KEY}`;
+        
+        // --- INSTANCIAS DE FIREBASE ---
+        let db;
+        let auth;
+        let userId = null;
 
-    /** Tries to convert a value to a specific type. */
-    function convertToType(value, type) {
-        type = type.toLowerCase();
-        if (type === 'entero') {
-            const num = parseInt(value);
-            if (isNaN(num)) throw new Error(`El valor "${value}" no es un Entero válido.`);
-            return num;
-        } else if (type === 'real') {
-            const num = parseFloat(value);
-            if (isNaN(num)) throw new Error(`El valor "${value}" no es un Real válido.`);
-            return num;
-        } else if (type === 'caracter') {
-            // PSeInt treats "string" as a "character type"
-            return String(value);
-        } else if (type === 'logico') {
-            const str = String(value).toLowerCase();
-            if (str === 'verdadero' || str === 'true') return true;
-            if (str === 'falso' || str === 'false') return false;
-            throw new Error(`El valor "${value}" no es un Lógico válido.`);
+        // --- Referencias DOM ---
+        const editorContainer = document.getElementById('editor-container');
+        const runButton = document.getElementById('run-button');
+        const outputConsole = document.getElementById('output-console');
+        const inputData = document.getElementById('input-data');
+        const variablesInspector = document.getElementById('variables-inspector');
+        const apiKeyWarning = document.getElementById('api-key-warning');
+        
+        // ELEMENTOS DE PERSISTENCIA
+        const documentTitleInput = document.getElementById('document-title');
+        const saveButton = document.getElementById('save-button');
+        const loadButton = document.getElementById('load-button');
+        const downloadButton = document.getElementById('download-button'); // NUEVO
+        const saveStatus = document.getElementById('save-status');
+        const userIdDisplay = document.getElementById('user-id-display');
+
+        // --- Ace Editor Instance ---
+        let editor;
+
+        // --- Estado de la Aplicación ---
+        let variables = {};
+        let inputQueue = [];
+        let executionCounter = 0;
+
+
+        // ************************************************************
+        // --- ACE EDITOR: INICIALIZACIÓN ---
+        // ************************************************************
+
+        function initAceEditor() {
+            // Inicializar la instancia de Ace Editor
+            editor = ace.edit(editorContainer);
+            editor.setTheme("ace/theme/tomorrow_night_eighties"); // Tema oscuro
+            
+            // DESACTIVAR el resaltado de línea al enfocar (CRÍTICO)
+            editor.setHighlightActiveLine(false);
+
+            // Configurar el modo de pseudocódigo que se definió en el script anterior
+            editor.session.setMode("ace/mode/pseudocode"); 
+            
+            // Configurar autocompletación
+            ace.require("ace/ext/language_tools");
+            editor.setOptions({
+                enableBasicAutocompletion: true,
+                enableLiveAutocompletion: true,
+                showPrintMargin: false
+            });
+            // Acceder al proveedor de autocompletación definido en el script global
+            editor.completers = [window.pseudocodeCompleter]; 
+            
+            // Re-implementar el bloqueo de pegado para Ace Editor
+            editor.container.addEventListener('paste', handlePasteAttempt);
+
+            // Establecer el código inicial
+            editor.setValue(
+`Proceso CalculadoraSuma
+  # Este es un comentario: ¡ahora en verde y negrita!
+  Definir num1, num2, suma Como Real
+  
+  Escribir "Ingrese el primer número:"
+  Leer num1
+  
+  Si num1 < 0 Entonces
+    Escribir "El número debe ser positivo."
+    num1 <- num1 * -1
+  FinSi
+  
+  Escribir "Ingrese el segundo número:"
+  Leer num2
+  
+  suma <- num1 + num2
+  
+  Escribir "La suma ajustada es: ", suma
+FinProceso
+`, -1); // -1 para colocar el cursor al inicio
+
+            // Ajustar el foco al cargar
+            editor.focus();
         }
-        return value;
-    }
-    
-    // --- Execution Loop and Control ---
 
-    /** Finds the matching block end (e.g., FinSi for Si). */
-    function findBlockEnd(startLine, lines, startCommand, endCommand) {
-        let depth = 0;
-        for (let i = startLine + 1; i < lines.length; i++) {
-            const token = tokenize(lines[i]);
-            if (!token) continue;
+        // ************************************************************
+        // --- FUNCIONES DE SEGURIDAD Y UTILIDAD ---
+        // ************************************************************
 
-            if (token.command.toLowerCase() === startCommand.toLowerCase()) {
-                depth++;
-            } else if (token.command.toLowerCase() === endCommand.toLowerCase()) {
-                if (depth === 0) return i;
-                depth--;
-            } else if (startCommand.toLowerCase() === 'si' && token.command.toLowerCase() === 'sino' && depth === 0) {
-                // Special case for Si-Sino-FinSi: Sino acts as a temporary end
-                return i;
+        /**
+         * Maneja el intento de pegar código para mantener la política educativa.
+         */
+        function handlePasteAttempt(event) {
+            event.preventDefault(); 
+            const consoleElement = document.getElementById('output-console');
+            consoleElement.textContent = `
+> 🛑 Operación de pegado bloqueada. 
+> Este entorno requiere que el código sea escrito a mano para fines educativos.
+> ¡A codificar!`;
+            consoleElement.classList.remove('text-gray-200');
+            consoleElement.classList.add('text-yellow-400');
+            
+            setTimeout(() => {
+                 consoleElement.classList.remove('text-yellow-400');
+                 consoleElement.classList.add('text-gray-200');
+                 if (consoleElement.textContent.includes("Operación de pegado bloqueada")) {
+                     consoleElement.textContent = "> Listo para ejecutar.";
+                 }
+            }, 3000);
+
+            return false;
+        }
+
+        /**
+         * 1. Limpia el estado de ejecución anterior.
+         */
+        function initializeState() {
+            variables = {};
+            inputQueue = inputData.value.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+            executionCounter++;
+            outputConsole.textContent = '';
+            runButton.disabled = true;
+            runButton.textContent = "⚙️ Ejecutando...";
+            updateVariablesDisplay();
+        }
+
+        /**
+         * 2. Formatea el pseudocódigo del usuario para que Gemini lo interprete.
+         */
+        function buildPrompt(code) {
+            const systemPrompt = `Eres un intérprete de pseudocódigo estricto. Tu tarea es analizar el código de entrada, ejecutarlo y simular el resultado de la consola (Escribir) y el estado final de las variables.
+            
+            Sigue estas reglas estrictas:
+            1. Procesa el código línea por línea.
+            2. Maneja las variables (Entero, Real, Caracter, Lógico). Si no se define el tipo, asume 'Real'.
+            3. Para la instrucción 'Leer <variable>', consume el siguiente valor de la 'Input Queue'. En el 'consoleOutput', inmediatamente después del mensaje de 'Escribir' que solicita la entrada, **debes mostrar el valor consumido de la 'Input Queue' en su propia línea, simulando la entrada del usuario y el salto de línea (Enter)**. Si la queue está vacía, genera un error.
+            4. Para la instrucción 'Escribir <expresion>', genera la línea de salida.
+            5. Maneja estructuras de control (Si-Entonces-Sino, Mientras, Para).
+            6. La salida debe ser una cadena JSON en el formato EXCLUSIVO.
+
+            --- FORMATO DE SALIDA REQUERIDO ---
+            {
+              "consoleOutput": "texto de la consola línea por línea",
+              "finalVariables": [
+                { "name": "variable1", "value": "valor final" },
+                { "name": "variable2", "value": "valor final" }
+                // ... otros objetos variable
+              ],
+              "error": "Mensaje de error si la ejecución falló (vacío si no hay error)"
+            }
+            
+            Ejecuta el siguiente código de pseudocódigo.`;
+
+            const userQuery = `
+            --- CONTEXTO DE ENTRADA ---
+            Input Queue (Entrada para 'Leer'): [${inputQueue.join(', ')}]
+            Código a ejecutar:
+            ${code}
+            `;
+            
+            return { systemPrompt, userQuery };
+        }
+        
+        /**
+         * 3. Muestra la salida y el estado final de las variables.
+         */
+        function displayResults(data) {
+            try {
+                outputConsole.textContent = data.consoleOutput || "Ejecución finalizada sin salida a la consola.";
+                
+                variables = (data.finalVariables || []).reduce((acc, current) => {
+                    if (current.name) {
+                        acc[current.name] = current.value;
+                    }
+                    return acc;
+                }, {});
+
+                updateVariablesDisplay();
+
+                if (data.error) {
+                    outputConsole.textContent += `\n\n--- ERROR DE EJECUCIÓN ---\n${data.error}`;
+                    outputConsole.classList.remove('text-gray-200');
+                    outputConsole.classList.add('text-red-400');
+                } else {
+                    outputConsole.classList.remove('text-red-400');
+                    outputConsole.classList.add('text-gray-200');
+                }
+
+            } catch (e) {
+                console.error("Error al procesar la respuesta del modelo:", e);
+                outputConsole.textContent = `Error interno: No se pudo procesar el resultado de la ejecución.`;
+                outputConsole.classList.add('text-red-400');
             }
         }
-        throw new Error(`Error: Falta ${endCommand} para el bloque ${startCommand} que comienza en la línea ${startLine + 1}.`);
-    }
-
-    /** Executes the program asynchronously to handle input. */
-    async function runProgram() {
-        if (programState.isWaitingForInput) return; // Prevent re-running during input
-
-        const code = codeInput.value;
-        // Clean code: remove comments and trim
-        programState.codeLines = code.split('\n')
-            .map(line => line.split('//')[0].trim())
-            .filter(line => line.length > 0);
-
-        // Reset state
-        programState.currentLine = 0;
-        programState.variables.clear();
-        consoleOutput.textContent = '';
-        updateVariablesDisplay(programState.variables);
         
-        log('--- INICIO DE EJECUCIÓN ---', 'info');
-        
-        let stack = []; // For control flow (Si, Mientras, Para)
+        /**
+         * 4. Actualiza el panel de variables.
+         */
+        function updateVariablesDisplay() {
+            variablesInspector.innerHTML = '';
+            const varNames = Object.keys(variables);
+            
+            if (varNames.length === 0) {
+                variablesInspector.innerHTML = '<p class="text-gray-500">No hay variables definidas.</p>';
+                return;
+            }
 
-        // Find Proceso block
-        let start = programState.codeLines.findIndex(line => line.toLowerCase().startsWith('proceso'));
-        let end = programState.codeLines.findIndex(line => line.toLowerCase().startsWith('finproceso'));
-        
-        if (start === -1 || end === -1 || start > end) {
-            log('Error: La estructura "Proceso ... FinProceso" es obligatoria.', 'error');
-            return;
+            for (const name in variables) {
+                const value = variables[name];
+                const varElement = document.createElement('p');
+                varElement.className = 'flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0';
+                varElement.innerHTML = `
+                    <span class="text-teal-600 font-semibold">${name}</span>
+                    <span class="text-gray-900">${value}</span>
+                `;
+                variablesInspector.appendChild(varElement);
+            }
         }
 
-        programState.currentLine = start + 1;
+        /**
+         * 5. Llama a la API de Gemini para la simulación de ejecución.
+         */
+        async function runCode() {
+            if (API_KEY === "TU_CLAVE_AQUI" || API_KEY === "") {
+                outputConsole.textContent = "> ERROR: Por favor, inserta tu clave de API de Gemini.";
+                return;
+            }
 
-        try {
-            // Main execution loop
-            while (programState.currentLine < end && programState.currentLine < programState.codeLines.length) {
-                const line = programState.codeLines[programState.currentLine];
-                const token = tokenize(line);
-                
-                if (!token) {
-                    programState.currentLine++;
-                    continue;
-                }
-                
-                const cmd = token.command.toLowerCase();
-                const args = token.args;
+            const code = editor.getValue(); // USANDO ACE EDITOR
+            if (code.trim() === '') {
+                outputConsole.textContent = '> Por favor, escribe un código para ejecutar.';
+                return;
+            }
+            
+            initializeState();
 
-                // Execute command based on token
-                if (cmd === 'definir') {
-                    const [name, type] = args;
-                    if (programState.variables.has(name)) {
-                        throw new Error(`Variable "${name}" ya ha sido definida.`);
-                    }
-                    // Default value based on type (0 for num, "" for char, false for logico)
-                    let defaultValue = null;
-                    if (type.toLowerCase() === 'entero' || type.toLowerCase() === 'real') defaultValue = 0;
-                    if (type.toLowerCase() === 'caracter') defaultValue = "";
-                    if (type.toLowerCase() === 'logico') defaultValue = false;
+            const { systemPrompt, userQuery } = buildPrompt(code);
 
-                    programState.variables.set(name, { type, value: defaultValue });
-                    programState.currentLine++;
-
-                } else if (cmd === 'asignacion') {
-                    const [name, expression] = args;
-                    const variableData = programState.variables.get(name);
-
-                    if (!variableData) {
-                        throw new Error(`Variable "${name}" no definida. Use "Definir ${name} Como Tipo".`);
-                    }
-                    
-                    const result = evaluateExpression(expression, programState.variables);
-                    
-                    // Type conversion/checking
-                    variableData.value = convertToType(result, variableData.type);
-
-                    updateVariablesDisplay(programState.variables);
-                    programState.currentLine++;
-
-                } else if (cmd === 'escribir') {
-                    let output = '';
-                    // Simple argument parsing: split by commas outside quotes
-                    const parts = args[0].match(/(?:[^\s,"]+|"[^"]*")+/g) || [];
-
-                    for (const part of parts) {
-                        if (part.startsWith('"') && part.endsWith('"')) {
-                            // String literal
-                            output += part.substring(1, part.length - 1);
-                        } else {
-                            // Variable or Expression
-                            try {
-                                const value = evaluateExpression(part, programState.variables);
-                                if (typeof value === 'boolean') {
-                                    output += value ? 'Verdadero' : 'Falso';
-                                } else {
-                                    output += value;
-                                }
-                            } catch (e) {
-                                output += part; // If evaluation fails, print as text
-                            }
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "consoleOutput": { "type": "STRING", description: "Texto de la consola línea por línea." },
+                            "finalVariables": { 
+                                "type": "ARRAY", 
+                                "items": {
+                                    "type": "OBJECT",
+                                    "properties": {
+                                        "name": { "type": "STRING", description: "El nombre de la variable." },
+                                        "value": { "type": "STRING", description: "El valor final de la variable (ej. 5, 'hola', true)." }
+                                    },
+                                    "required": ["name", "value"]
+                                },
+                                description: "Lista de objetos, donde cada objeto contiene el nombre y el valor final de una variable."
+                            },
+                            "error": { "type": "STRING", description: "Mensaje de error de ejecución. Cadena vacía si la ejecución fue exitosa." }
                         }
                     }
-                    log(output);
-                    programState.currentLine++;
-
-                } else if (cmd === 'leer') {
-                    const name = args[0].trim();
-                    const variableData = programState.variables.get(name);
-
-                    if (!variableData) {
-                        throw new Error(`Variable "${name}" no definida para la operación Leer.`);
-                    }
-
-                    programState.isWaitingForInput = true;
-                    runButton.disabled = true;
-                    
-                    // Asynchronously wait for input from the custom modal
-                    await new Promise(resolve => {
-                        programState.inputResolve = resolve;
-                        showModal(
-                            'Entrada de Usuario', 
-                            `Ingrese un valor para la variable '${name}' (Tipo: ${variableData.type}):`, 
-                            true, 
-                            (inputValue) => {
-                                try {
-                                    // Attempt to convert input value to the required type
-                                    variableData.value = convertToType(inputValue, variableData.type);
-                                    updateVariablesDisplay(programState.variables);
-                                    log(`> ${inputValue}`, 'input'); // Log user input
-                                    programState.currentLine++;
-                                    resolve(); // Continue execution
-                                } catch (e) {
-                                    showModal('Error de Tipo', e.message);
-                                    resolve(); // Resolve to prevent freezing, error will be logged in console
-                                    throw e; // Re-throw the error to stop the execution loop
-                                }
-                            }
-                        );
+                }
+            };
+            
+            const maxRetries = 3;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
                     });
 
-                    // Execution continues after the modal is handled
-                    programState.isWaitingForInput = false;
-                    runButton.disabled = false;
-                    programState.inputResolve = null;
+                    if (!response.ok) {
+                        let errorMessage = `HTTP error! status: ${response.status}.`;
+                        const errorBody = await response.json();
+                        if (errorBody && errorBody.error && errorBody.error.message) {
+                            errorMessage = `Server Rejected (Code: ${response.status}): ${errorBody.error.message}`;
+                        }
 
-                } else if (cmd === 'si') {
-                    const condition = evaluateExpression(args[0], programState.variables);
-                    const endIf = findBlockEnd(programState.currentLine, programState.codeLines, 'Si', 'FinSi');
-                    const sino = findBlockEnd(programState.currentLine, programState.codeLines, 'Si', 'Sino');
+                        if (response.status === 429 && attempt < maxRetries - 1) {
+                            const delay = Math.pow(2, attempt) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue;
+                        }
+                        
+                        throw new Error(errorMessage);
+                    }
+
+                    const result = await response.json();
                     
-                    if (condition) {
-                        // Condition is true: enter the Si block
-                        stack.push({ type: 'Si', jump: endIf });
-                        programState.currentLine++; // Move into the Si block
+                    const jsonText = result?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (jsonText) {
+                        const parsedData = JSON.parse(jsonText);
+                        displayResults(parsedData);
                     } else {
-                        // Condition is false: jump to Sino (if present) or FinSi (if not)
-                        const jumpTarget = (sino !== -1 && sino < endIf) ? sino + 1 : endIf + 1;
-                        programState.currentLine = jumpTarget;
+                        const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Respuesta vacía del modelo.";
+                        outputConsole.textContent = `ERROR: La respuesta del modelo no pudo ser procesada como JSON. Raw Output:\n${rawText}`;
+                        outputConsole.classList.add('text-red-400');
                     }
-
-                } else if (cmd === 'sino') {
-                    // Sino command: must jump to FinSi
-                    const endIf = findBlockEnd(programState.currentLine, programState.codeLines, 'FinSi', 'FinSi'); // Simple way to find the next FinSi
-                    programState.currentLine = endIf + 1;
-
-                } else if (cmd === 'finsi') {
-                    // FinSi command: pop the Si block from the stack if it was active
-                    // NOTE: If using the stack for proper block exiting, we'd pop here. 
-                    // For a simple interpreter, just continue.
-                    programState.currentLine++;
-
-                } else if (cmd === 'mientras') {
-                    const condition = args[0];
-                    const startWhile = programState.currentLine;
-
-                    if (evaluateExpression(condition, programState.variables)) {
-                        // Condition is true: enter the loop
-                        stack.push({ type: 'Mientras', start: startWhile, condition });
-                        programState.currentLine++;
-                    } else {
-                        // Condition is false: jump past FinMientras
-                        const endWhile = findBlockEnd(startWhile, programState.codeLines, 'Mientras', 'FinMientras');
-                        programState.currentLine = endWhile + 1;
+                    break;
+                } catch (error) {
+                    console.error("Error en la llamada a la API:", error);
+                    if (attempt === maxRetries - 1) {
+                         const finalErrorMessage = error.message;
+                         outputConsole.textContent = `❌ Fallo de comunicación con el intérprete después de ${maxRetries} intentos.\nDetalle: ${finalErrorMessage}`;
+                         outputConsole.classList.add('text-red-400');
                     }
-
-                } else if (cmd === 'finmientras') {
-                    const whileBlock = stack.findLast(s => s.type === 'Mientras');
-                    if (!whileBlock) throw new Error("Error de sintaxis: 'FinMientras' sin 'Mientras' correspondiente.");
-                    
-                    if (evaluateExpression(whileBlock.condition, programState.variables)) {
-                        // Condition is still true: loop back
-                        programState.currentLine = whileBlock.start + 1; 
-                    } else {
-                        // Condition is false: exit the loop, move past FinMientras, and remove from stack
-                        stack.pop();
-                        programState.currentLine++;
-                    }
-                
-                } else if (cmd === 'para') {
-                    // NOTE: 'Para' implementation is complex due to its one-line nature (initialization, condition, increment)
-                    // This simple interpreter skips the 'Para' block and just moves to the next line.
-                    // For a functional 'Para' loop, a much more complex state tracking mechanism is required.
-                    log(`ADVERTENCIA: La sintaxis 'Para' se reconoce pero no se interpreta completamente en este simulador.`, 'error');
-                    programState.currentLine++;
-                } 
-                
-                else {
-                    // Unrecognized or complex command (e.g., Funciones)
-                    log(`ADVERTENCIA: Comando no reconocido o ignorado: "${line}"`, 'error');
-                    programState.currentLine++;
                 }
-
             }
-        } catch (e) {
-            log(`ERROR de EJECUCIÓN en línea ${programState.currentLine + 1}: ${e.message}`, 'error');
+            
+            runButton.disabled = false;
+            runButton.textContent = "▶ Ejecutar y Simular";
         }
 
-        log('--- FIN DE EJECUCIÓN ---', 'info');
-        programState.isWaitingForInput = false;
-        runButton.disabled = false;
-    }
+        // ************************************************************
+        // --- FUNCIONES DE PERSISTENCIA (FIRESTORE) ---
+        // ************************************************************
 
-    // --- Event Listeners and Initial State ---
-    
-    // Initial setup for the code input area
-    const initialCode = 
+        /**
+         * Guarda el pseudocódigo actual en Firestore.
+         */
+        async function saveCode() {
+            if (!userId) {
+                saveStatus.textContent = "Error: La aplicación no está autenticada. No se puede guardar.";
+                saveStatus.classList.add('text-red-500');
+                return;
+            }
+            const documentTitle = documentTitleInput.value.trim();
+            if (!documentTitle) {
+                saveStatus.textContent = "Error: El nombre del archivo no puede estar vacío.";
+                saveStatus.classList.add('text-red-500');
+                return;
+            }
 
+            saveButton.disabled = true;
+            loadButton.disabled = true;
+            downloadButton.disabled = true;
+            saveStatus.textContent = "Guardando...";
+            saveStatus.classList.remove('text-red-500', 'text-blue-500');
+            saveStatus.classList.add('text-gray-600');
 
-`Proceso Ejemplo
-// Define una variable entera
-Definir edad Como Entero;
+            try {
+                // Ruta de datos privada: /artifacts/{appId}/users/{userId}/pseudocode_files/{documentId}
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'pseudocode_files', documentTitle);
+                await setDoc(docRef, {
+                    code: editor.getValue(), // USANDO ACE EDITOR
+                    timestamp: new Date().toISOString()
+                });
+                
+                saveStatus.textContent = `✅ Código guardado como '${documentTitle}' con éxito.`;
+                saveStatus.classList.remove('text-gray-600');
+                saveStatus.classList.add('text-blue-500');
 
-Escribir "Hola! Por favor, dime tu edad:";
-Leer edad;
+            } catch (error) {
+                console.error("Error al guardar el código:", error);
+                saveStatus.textContent = `❌ Error al guardar: ${error.message}`;
+                saveStatus.classList.remove('text-gray-600');
+                saveStatus.classList.add('text-red-500');
+            } finally {
+                saveButton.disabled = false;
+                loadButton.disabled = false;
+                downloadButton.disabled = false;
+                setTimeout(() => saveStatus.textContent = '', 5000);
+            }
+        }
 
-Si edad >= 18 Entonces
-    Escribir "Eres mayor de edad.";
-Sino
-    Escribir "Eres menor de edad.";
-FinSi
+        /**
+         * Carga el pseudocódigo desde Firestore.
+         */
+        async function loadCode() {
+            if (!userId) {
+                saveStatus.textContent = "Error: La aplicación no está autenticada. No se puede cargar.";
+                saveStatus.classList.add('text-red-500');
+                return;
+            }
+            const documentTitle = documentTitleInput.value.trim();
+            if (!documentTitle) {
+                saveStatus.textContent = "Error: El nombre del archivo no puede estar vacío.";
+                saveStatus.classList.add('text-red-500');
+                return;
+            }
 
-// Un bucle Mientras
-Definir contador Como Entero;
-contador <- 1;
-Mientras contador <= 3 Hacer
-    Escribir "Contador:", contador;
-    contador <- contador + 1;
-FinMientras
+            saveButton.disabled = true;
+            loadButton.disabled = true;
+            downloadButton.disabled = true;
+            saveStatus.textContent = "Cargando...";
+            saveStatus.classList.remove('text-red-500', 'text-blue-500');
+            saveStatus.classList.add('text-gray-600');
 
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'users', userId, 'pseudocode_files', documentTitle);
+                const docSnap = await getDoc(docRef);
 
-FinProceso`;
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    editor.setValue(data.code || '', -1); // USANDO ACE EDITOR
+                    saveStatus.textContent = `✅ Código cargado como '${documentTitle}' con éxito.`;
+                    saveStatus.classList.remove('text-gray-600');
+                    saveStatus.classList.add('text-blue-500');
+                } else {
+                    saveStatus.textContent = `⚠️ No se encontró el archivo con el nombre '${documentTitle}'.`;
+                    saveStatus.classList.remove('text-gray-600');
+                    saveStatus.classList.add('text-red-500');
+                }
+            } catch (error) {
+                console.error("Error al cargar el código:", error);
+                saveStatus.textContent = `❌ Error al cargar: ${error.message}`;
+                saveStatus.classList.remove('text-gray-600');
+                saveStatus.classList.add('text-red-500');
+            } finally {
+                saveButton.disabled = false;
+                loadButton.disabled = false;
+                downloadButton.disabled = false;
+                setTimeout(() => saveStatus.textContent = '', 5000);
+            }
+        }
 
-    codeInput.value = initialCode;
+        /**
+         * Descarga el código actual del editor como un archivo .txt.
+         */
+        function downloadCodeAsTxt() {
+            const codeContent = editor.getValue();
+            let filename = documentTitleInput.value.trim() || 'pseudocodigo_sin_titulo';
+            
+            // Asegurarse de que el nombre de archivo termine en .txt
+            if (!filename.toLowerCase().endsWith('.txt')) {
+                filename += '.txt';
+            }
 
-    // Enable/disable run button based on content
-    codeInput.addEventListener('input', () => {
-        runButton.disabled = codeInput.value.trim().length === 0 || programState.isWaitingForInput;
-    });
-    // Check initial state
-    runButton.disabled = codeInput.value.trim().length === 0;
+            // Crear un Blob (objeto binario) con el contenido y el tipo de archivo (texto plano)
+            const blob = new Blob([codeContent], { type: 'text/plain' });
+            
+            // Crear un enlace temporal para el navegador
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename; // Nombre del archivo que se descargará
+            
+            // Simular un clic para iniciar la descarga
+            document.body.appendChild(a);
+            a.click();
+            
+            // Limpiar el objeto URL temporal
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
 
-    runButton.addEventListener('click', () => {
-        runProgram();
-    });
+            saveStatus.textContent = `⬇️ Archivo '${filename}' descargado con éxito.`;
+            saveStatus.classList.remove('text-red-500', 'text-blue-500');
+            saveStatus.classList.add('text-purple-500');
+            setTimeout(() => saveStatus.textContent = '', 5000);
+        }
 
-</script>
+        // ************************************************************
+        // --- INICIALIZACIÓN Y EVENTOS ---
+        // ************************************************************
 
+        /**
+         * Inicializa Firebase y autentica al usuario.
+         */
+        async function initFirebase() {
+            if (Object.keys(firebaseConfig).length === 0) {
+                 // Si no hay configuración de Firebase
+                console.warn("Configuración de Firebase no disponible.");
+                saveStatus.textContent = "El almacenamiento de código no está disponible (Falta configuración de Firebase).";
+                return;
+            }
 
+            try {
+                // Configuración de Logging para depuración
+                setLogLevel('error'); 
+                
+                // 1. Inicializar app y servicios
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                
+                // 2. Autenticar usando el token proporcionado o de forma anónima
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                // 3. Establecer el listener de estado de autenticación
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userIdDisplay.textContent = userId;
+                        saveButton.disabled = false;
+                        loadButton.disabled = false;
+                        saveStatus.textContent = "Servicio de Guardado listo.";
+                    } else {
+                        userId = null;
+                        userIdDisplay.textContent = "Desconectado";
+                        saveButton.disabled = true;
+                        loadButton.disabled = true;
+                        saveStatus.textContent = "Error de autenticación. No se puede guardar.";
+                    }
+                });
+
+            } catch (error) {
+                console.error("Error de inicialización de Firebase/Autenticación:", error);
+                userIdDisplay.textContent = `Error: ${error.message}`;
+                saveStatus.textContent = `Error crítico en Firebase: ${error.message}`;
+                saveButton.disabled = true;
+                loadButton.disabled = true;
+            }
+        }
+
+        // --- Event Listeners ---
+        runButton.addEventListener('click', runCode);
+        saveButton.addEventListener('click', saveCode);
+        loadButton.addEventListener('click', loadCode);
+        downloadButton.addEventListener('click', downloadCodeAsTxt); // ASIGNACIÓN DEL NUEVO BOTÓN
+        
+        // --- Inicialización Principal ---
+        window.onload = () => {
+             // 1. Inicializar Ace Editor
+            initAceEditor();
+
+            // 2. Verificar la API Key de Gemini
+            if (API_KEY === "TU_CLAVE_AQUI" || API_KEY === "") {
+                apiKeyWarning.classList.remove('hidden');
+                runButton.disabled = true;
+                runButton.textContent = "Clave API Faltante";
+                outputConsole.textContent = "> 🔴 ERROR: Por favor, inserta tu clave de API de Gemini para ejecutar el intérprete.";
+            } else {
+                 apiKeyWarning.classList.add('hidden');
+                 runButton.disabled = false;
+                 outputConsole.textContent = "✅ Clave de API detectada. ¡Listo para ejecutar!";
+            }
+            
+            // 3. Inicializar Firebase para guardar y cargar
+            initFirebase();
+        };
+
+    </script>
 </body>
 </html>
